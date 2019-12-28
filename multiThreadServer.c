@@ -27,9 +27,8 @@ fd_set master;   // master file descriptor list
 int listener;    // listening socket descriptor
 int fdmax;
 
-struct userInfo {
+struct userInfo {   //struct that will hold client information
      long thisSocket;
-     string theAddr;
      string ipAddr;
      bool currLog,
           rootLog;
@@ -80,34 +79,6 @@ void Logout(char buf[], const long& childSocket) {
           }
      }
 
-}
-
-/*
-Description: This function will return a list of names of all users currently logged in.
-Pre-conditions: The function takes a character array to store the message that will be sent back to the client as an argument.
-Post-conditions: The list of logged in users is stored in the char array.
-*/
-void ListUsers(char buf[]) {
-
-     string tempString = "\0";
-
-     for (int i = 0; i < MAX_ARRAY; ++i) {   //search through to find logged in users
-          if (userArray[i].currLog) {
-
-               if (tempString == "\0") {     //first user logged in
-                    tempString = "The list of active users:\n" + userArray[i].userName + "\t" + userArray[i].ipAddr;
-               }
-               else {         //any additional user logged in
-                    tempString = tempString + "\n" + userArray[i].userName + "\t" + userArray[i].ipAddr;
-               }
-          }
-     }
-
-     if (tempString == "\0") {     //handle no users logged in
-          tempString = "No users currently logged in";
-     }
-
-     strcpy(buf, tempString.c_str());
 }
 
 /*
@@ -229,10 +200,36 @@ void storeInFile() {
      }
 }
 
+/*
+Description: This function will return a list of names of all users currently logged in.
+Pre-conditions: The function takes a character array to store the message that will be sent back to the client as an argument.
+Post-conditions: The list of logged in users is stored in the char array.
+*/
+void ListUsers(char buf[]) {
 
+     string tempString = "\0";
+
+     for (int i = 0; i < MAX_ARRAY; ++i) {   //search through to find logged in users
+          if (userArray[i].currLog) {
+
+               if (tempString == "\0") {     //first user logged in
+                    tempString = "The list of the active users:\n" + userArray[i].userName + "\t" + userArray[i].ipAddr;
+               }
+               else {         //any additional user logged in
+                    tempString = tempString + "\n" + userArray[i].userName + "\t" + userArray[i].ipAddr;
+               }
+          }
+     }
+
+     if (tempString == "\0") {     //handle no users logged in
+          tempString = "No users currently logged in";
+     }
+
+     strcpy(buf, tempString.c_str());
+}
 
 /*
-Description: The primary function that will handle messages to and from a specific client.
+Description: The primary function that will handle communications to and from a specific client.
 Pre-condition: Requires a new thread to be created for the client and the socket number to be passed.
 Post-condition: The function will handle messages received from the client, perform 
                 associated actions, and close the socket when finished.
@@ -263,22 +260,21 @@ void* ChildThread(void* newfd) {
                cout << buf;
                for (j = 0; j <= fdmax; j++) {
 
-
                     if (buf[0] == 'L' && buf[1] == 'O' && buf[2] == 'G' && buf[3] == 'I' && buf[4] == 'N') {   //login feature
 
                          Login(buf, childSocket);
 
-                    }
+                    }    //end login
                     else if (buf[0] == 'L' && buf[1] == 'O' && buf[2] == 'G' && buf[3] == 'O' && buf[4] == 'U' && buf[5] == 'T') {  //logout
 
                          Logout(buf, childSocket);
 
-                    }
+                    }    //end logout
                     else if (strcmp(buf, "MSGGET\n") == 0) {  //MSGGET
                          strStore = msgget();
                          strStore = "200 OK\n" + strStore;
                          strcpy(buf, strStore.c_str());
-                    }
+                    }    //end msgget
                     else if (strcmp(buf, "MSGSTORE\n") == 0) {  //MSGSTORE
 
                          for (int y = 0; y < MAX_ARRAY; ++y) {
@@ -292,7 +288,6 @@ void* ChildThread(void* newfd) {
                                         strStore = buf;
                                         strStore.at(strStore.length() - 1) = '\0';
                                         if (msgstore()) {
-                                             cout << "200 OK SUCCESS" << endl;
                                              strcpy(buf, "200 OK");
                                         }
                                         break;
@@ -302,9 +297,8 @@ void* ChildThread(void* newfd) {
                                    }
                               }
                          }
-
-                    }
-                    else if (strcmp(buf, "QUIT\n") == 0) {  //quit
+                    }    //end msgstore
+                    else if (strcmp(buf, "QUIT\n") == 0) {  //quit, resetting the struct to default
 
                          strcpy(buf, "200 OK");
                          send(childSocket, buf, strlen(buf) + 1, 0);
@@ -319,8 +313,7 @@ void* ChildThread(void* newfd) {
                          }
                          close(childSocket);
                          break;
-
-                    }
+                    }    //end quit
                     else if (strcmp(buf, "SHUTDOWN\n") == 0) {   //shutdown
 
                          for (int i = 0; i < MAX_ARRAY; ++i) {
@@ -330,14 +323,14 @@ void* ChildThread(void* newfd) {
 
                                    }
                                    else { //user is root, shut down
-                                        strcpy(buf, "200 OK");
+                                        strcpy(buf, "200 OK\n210 the server is about to shutdown....");
                                         send(childSocket, buf, sizeof(buf), 0);
                                         outFile.open("input.txt");
                                         storeInFile();
                                         outFile.close();
                                         strcpy(buf, "210 the server is about to shutdown....");
                                         for (int z = 0; z < MAX_ARRAY; ++z) {   //close all other connections
-                                             if (userArray[z].thisSocket) {
+                                             if (userArray[z].thisSocket && userArray[z].thisSocket != childSocket) {
                                                   send(userArray[z].thisSocket, buf, sizeof(buf), 0);
                                                   close(userArray[z].thisSocket);
                                              }
@@ -346,42 +339,34 @@ void* ChildThread(void* newfd) {
                                    }
                               }
                          }
-                    }
+                    }    //end shutdown
                     else if (strcmp(buf, "WHO\n") == 0) {   //list everyone signed in
 
                          ListUsers(buf);
 
-                    }
+                    }    //end who
                     else if (buf[0] == 'S' && buf[1] == 'E' && buf[2] == 'N' && buf[3] == 'D') {
                          
                          bool loggedIn = false;
-                         for (int i = 0; i < MAX_ARRAY; ++i) {   //handle client not being logged in
+                         string myName;      //name of the person sending the message
+                         for (int i = 0; i < MAX_ARRAY; ++i) {   //find name and verify logged in
                               if (userArray[i].thisSocket == childSocket && userArray[i].currLog) {
+                                   myName = userArray[i].userName;
                                    loggedIn = true;
                                    break;
                               }
                          }
                          
-                         if (loggedIn) {
-                              string myName;      //name of the person sending the message
-
-                              for (int i = 0; i < MAX_ARRAY; ++i) {   //finding myName
-                                   if (userArray[i].thisSocket == childSocket && userArray[i].currLog) {
-                                        myName = userArray[i].userName;
-                                        break;
-                                   }
-                              }
-
+                         if (loggedIn) {     //client is logged in and can send message
                               string tempMsg = buf;
-                              string tempName = tempMsg.substr(5, tempMsg.size() - 6);    //extract recipient from the message
+                              string tempName = tempMsg.substr(5, tempMsg.size() - 6);    //extract name of recipient from the message
 
-                              int tempCount = 0;  //used to determine if the person that will receive the message is signed in
+                              int tempCount = 0;  //used to determine if the recipient is signed in
                               for (int i = 0; i < MAX_ARRAY; ++i) {   //if user is signed in, 
                                    if (userArray[i].userName != tempName) {
-                                        tempCount++;
+                                        tempCount++;   //tempCount will == MAX_ARRAY if the recipient is not signed in, otherwise will equal MAX_ARRAY - 1
                                    }
                               }
-
 
                               if (tempCount != MAX_ARRAY) { //if recipient of message is logged in
                                    strcpy(buf, "200 OK");
@@ -409,16 +394,11 @@ void* ChildThread(void* newfd) {
                               strcpy(buf, "You need to be logged in to send a message");
                          }
                          
-                    }
-
-
-
-
-
+                    }    //end send
 
                     if (FD_ISSET(j, &master)) {
-                         // except the listener
-                         if (j != listener && j == childSocket) {
+                         // send to child socket
+                         if (j == childSocket) {
                               if (send(j, buf, sizeof(buf), 0) == -1) {
                                    perror("send");
                               }
@@ -503,7 +483,7 @@ int main(void)
                     << inet_ntoa(remoteaddr.sin_addr)
                     << " socket " << newfd << endl;
 
-               //set the new connection
+               //set the new connection to a struct in the array
                for (int i = 0; i < MAX_ARRAY; ++i) {
                     if (!userArray[i].thisSocket) {     //current spot in array is not taken
                          userArray[i].thisSocket = (long)newfd;
@@ -511,7 +491,6 @@ int main(void)
                          break;
                     }
                }
-
 
 
                if (newfd > fdmax) {    // keep track of the maximum
@@ -523,11 +502,7 @@ int main(void)
                     exit(1);
                }
           }
-
-
-
-
-
      }
      return 0;
 }
+
