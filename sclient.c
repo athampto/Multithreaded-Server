@@ -98,7 +98,7 @@ int main(int argc, char* argv[]) {
                     else if (strcmp(buf, "SHUTDOWN\n") == 0 || strcmp(buf, "QUIT\n") == 0) { //special case to handle the exit commands
                          send(s, buf, len, 0);
                          recv(s, rbuf, sizeof(rbuf), 0);
-                         if (strcmp(rbuf, "200 OK") == 0) {
+                         if (strcmp(rbuf, "200 OK") == 0 || strcmp(rbuf, "200 OK\n210 the server is about to shutdown....") == 0) {
                               cout << "Server: " << rbuf << endl;
                               close(s);
                               break;
@@ -137,7 +137,14 @@ int main(int argc, char* argv[]) {
           if (FD_ISSET(s, &read_fds)) {
                // handle data from the server
                if (recv(s, buf, sizeof(buf), 0) > 0) {
-                    cout << buf << endl;
+                    if (strcmp(buf, "210 the server is about to shutdown....") == 0) {    //handle server shutting down
+                         cout << buf << endl;
+                         close(s);
+                         break;
+                    }
+                    else {
+                         cout << buf << endl;
+                    }
                }
           }
      }
