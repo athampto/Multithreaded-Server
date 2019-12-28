@@ -6,7 +6,7 @@ First you must go to the right directory in which your files are in. Then you mu
 
 First run the server code within SSH and then open up new windows for clients and do not forget to add an IP address after the command "./sclient 'IP_ADDRESS GOES HERE'"
 
-Different Commands that the client can sent to the server that are recognized:
+Different Commands that the client can send to the server that are recognized:
 
 "MSGGET": allows the client to recieve a message of the day from input.txt file.
 
